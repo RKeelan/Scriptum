@@ -1,0 +1,31 @@
+{
+  "name": "@rkeelan/scriptum",
+  "version": "0.1.0",
+  "description": "Browser-based handwriting synthesis using Alex Graves' RNN model",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun run tsc",
+    "check": "biome check .",
+    "fmt": "biome check --fix .",
+    "lint": "biome lint .",
+    "test": "bun test"
+  },
+  "keywords": [
+    "handwriting",
+    "synthesis",
+    "rnn",
+    "svg"
+  ],
+  "author": "Richard Keelan",
+  "license": "MIT",
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}
