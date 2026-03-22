@@ -14,6 +14,24 @@ export interface StrokePoint {
   penUp: boolean;
 }
 
+/** An absolute, aligned coordinate in stroke space. */
+export interface StrokeCoord {
+  x: number;
+  y: number;
+}
+
+/** Tuning knobs for outline generation. */
+export interface OutlineOptions {
+  /** Minimum stroke width (at maximum speed). Default 0.1. */
+  minWidth?: number;
+  /** Maximum stroke width (at zero speed). Default 1.2. */
+  maxWidth?: number;
+  /** Distance value that maps to minimum width. Default 2.0. */
+  speedCap?: number;
+  /** Moving-average window size for width smoothing. Default 3. */
+  smoothingWindow?: number;
+}
+
 /** Options for the synthesize function. */
 export interface SynthesizeOptions {
   /** URL or path to the binary weights file. */
