@@ -66,9 +66,18 @@ def main():
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
+    # Kernel tensors need transposing: TF stores [input, output] but we want
+    # [output, input] row-major for efficient matVecMul(kernel, input, output, input).
+    TRANSPOSE = {
+        "lstm1_kernel", "lstm2_kernel", "lstm3_kernel",
+        "attention_weights", "gmm_weights",
+    }
+
     tensors = []
     for tf_name, logical_name in sorted(WEIGHT_MAP.items()):
         array = reader.get_tensor(tf_name).astype(np.float32)
+        if logical_name in TRANSPOSE and array.ndim == 2:
+            array = array.T.copy()
         scale, quantised = quantise(array)
         tensors.append((logical_name, array.shape, scale, quantised))
         print(

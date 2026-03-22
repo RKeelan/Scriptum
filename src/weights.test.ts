@@ -52,7 +52,7 @@ describe("loadWeights", () => {
     const weights = loadWeights(buf);
 
     const tensor = weights.test_bias;
-    expect(tensor).toBeDefined();
+    if (!tensor) throw new Error("missing test_bias");
     expect(tensor.shape).toEqual([3]);
     expect(tensor.data.length).toBe(3);
     expect(tensor.data[0]).toBeCloseTo(1.27, 4);
@@ -66,7 +66,7 @@ describe("loadWeights", () => {
     const weights = loadWeights(buf);
 
     const tensor = weights.test_kernel;
-    expect(tensor).toBeDefined();
+    if (!tensor) throw new Error("missing test_kernel");
     expect(tensor.shape).toEqual([2, 2]);
     expect(tensor.data.length).toBe(4);
     expect(tensor.data[0]).toBeCloseTo(2.54, 4);
