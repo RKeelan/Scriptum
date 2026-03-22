@@ -26,12 +26,10 @@ export function lstmStep(
   const gates = vecAdd(matVecMul(kernel, input, gateSize, inputSize), bias);
 
   // Split into four gates
-  const iGate = sigmoid(gates.subarray(0, numUnits));
-  const jGate = tanhVec(gates.subarray(numUnits, 2 * numUnits));
-  const fGate = sigmoid(
-    vecAddScalar(new Float32Array(gates.subarray(2 * numUnits, 3 * numUnits)), 1.0),
-  );
-  const oGate = sigmoid(gates.subarray(3 * numUnits, 4 * numUnits));
+  const iGate = sigmoid(gates.slice(0, numUnits));
+  const jGate = tanhVec(gates.slice(numUnits, 2 * numUnits));
+  const fGate = sigmoid(vecAddScalar(gates.slice(2 * numUnits, 3 * numUnits), 1.0));
+  const oGate = sigmoid(gates.slice(3 * numUnits, 4 * numUnits));
 
   // c_new = f * c_prev + i * j
   const cNew = vecAdd(vecMul(fGate, cPrev), vecMul(iGate, jGate));
