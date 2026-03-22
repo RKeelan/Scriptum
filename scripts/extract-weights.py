@@ -1,14 +1,13 @@
-"""Extract weights from TensorFlow checkpoint into a compact binary format.
+"""Extract weights from TensorFlow checkpoint into a binary format.
 
 Binary format:
-  Header: magic "SCRP" (4 bytes), version (uint32 LE), tensor_count (uint32 LE)
+  Header: magic "SCRP" (4 bytes), tensor_count (uint32 LE)
   Per tensor:
     name_length (uint16 LE)
     name (utf8 bytes)
     ndims (uint8)
     shape (ndims x uint32 LE)
-    scale (float32 LE)
-    data (int8[product(shape)])
+    data (float32 LE[product(shape)])
 """
 
 import os
@@ -33,18 +32,6 @@ WEIGHT_MAP = {
     "rnn/gmm/weights": "gmm_weights",
     "rnn/gmm/biases": "gmm_bias",
 }
-
-VERSION = 1
-
-
-def quantise(array: np.ndarray) -> tuple[float, np.ndarray]:
-    """Quantise float32 array to int8 with a single scale factor."""
-    scale = float(np.max(np.abs(array)))
-    if scale == 0:
-        return 0.0, np.zeros_like(array, dtype=np.int8)
-    quantised = np.round(array / scale * 127).astype(np.int8)
-    return scale, quantised
-
 
 def main():
     checkpoint_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser(
@@ -78,27 +65,25 @@ def main():
         array = reader.get_tensor(tf_name).astype(np.float32)
         if logical_name in TRANSPOSE and array.ndim == 2:
             array = array.T.copy()
-        scale, quantised = quantise(array)
-        tensors.append((logical_name, array.shape, scale, quantised))
+        tensors.append((logical_name, array.shape, array))
+        total = int(np.prod(array.shape))
         print(
             f"  {logical_name:25s} {str(array.shape):20s} "
-            f"scale={scale:.6f} "
-            f"max_error={np.max(np.abs(array - quantised.astype(np.float32) / 127 * scale)):.6f}"
+            f"{total * 4:>10,} bytes"
         )
 
     with open(output_path, "wb") as f:
         # Header
         f.write(b"SCRP")
-        f.write(struct.pack("<II", VERSION, len(tensors)))
+        f.write(struct.pack("<I", len(tensors)))
 
-        for name, shape, scale, data in tensors:
+        for name, shape, data in tensors:
             name_bytes = name.encode("utf-8")
             f.write(struct.pack("<H", len(name_bytes)))
             f.write(name_bytes)
             f.write(struct.pack("<B", len(shape)))
             for dim in shape:
                 f.write(struct.pack("<I", dim))
-            f.write(struct.pack("<f", scale))
             f.write(data.tobytes())
 
     file_size = os.path.getsize(output_path)

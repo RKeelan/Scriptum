@@ -1,11 +1,14 @@
 import type { WeightDict } from "./types.js";
 
 const MAGIC = 0x50524353; // "SCRP" as little-endian uint32
-const SUPPORTED_VERSION = 1;
 
 /**
  * Parse a binary weight file into a WeightDict.
- * Dequantises int8 values back to float32 using stored scale factors.
+ *
+ * Binary format:
+ *   Header: magic "SCRP" (4 bytes), tensor_count (uint32 LE)
+ *   Per tensor: name_length (uint16 LE), name (utf8), ndims (uint8),
+ *               shape (ndims x uint32 LE), data (float32 LE[product(shape)])
  */
 export function loadWeights(buffer: ArrayBuffer): WeightDict {
   const view = new DataView(buffer);
@@ -15,12 +18,6 @@ export function loadWeights(buffer: ArrayBuffer): WeightDict {
   offset += 4;
   if (magic !== MAGIC) {
     throw new Error(`Invalid weight file: expected magic SCRP, got 0x${magic.toString(16)}`);
-  }
-
-  const version = view.getUint32(offset, true);
-  offset += 4;
-  if (version !== SUPPORTED_VERSION) {
-    throw new Error(`Unsupported weight file version: ${version}`);
   }
 
   const tensorCount = view.getUint32(offset, true);
@@ -48,16 +45,11 @@ export function loadWeights(buffer: ArrayBuffer): WeightDict {
       totalElements *= dim;
     }
 
-    const scale = view.getFloat32(offset, true);
-    offset += 4;
-
-    // Dequantise: float32 = int8 / 127 * scale
     const data = new Float32Array(totalElements);
-    const factor = scale / 127;
     for (let i = 0; i < totalElements; i++) {
-      data[i] = view.getInt8(offset + i) * factor;
+      data[i] = view.getFloat32(offset, true);
+      offset += 4;
     }
-    offset += totalElements;
 
     weights[name] = { data, shape };
   }

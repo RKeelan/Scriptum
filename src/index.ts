@@ -6,8 +6,14 @@ import { fetchWeights } from "./weights.js";
 
 export { ALPHABET, ALPHABET_SIZE } from "./encoding.js";
 export { SynthesisModel } from "./model.js";
-export { strokesToSvgPaths } from "./svg.js";
-export type { StrokePoint, SynthesizeOptions, WeightDict } from "./types.js";
+export { outlinePath, strokesToCoords, strokesToOutlinePaths, strokesToSvgPaths } from "./svg.js";
+export type {
+  OutlineOptions,
+  StrokeCoord,
+  StrokePoint,
+  SynthesizeOptions,
+  WeightDict,
+} from "./types.js";
 export { fetchWeights, loadWeights } from "./weights.js";
 
 let cachedWeights: WeightDict | null = null;

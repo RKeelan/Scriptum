@@ -29,7 +29,7 @@
   <div id="status"></div>
 
   <script type="module">
-    import { SynthesisModel, loadWeights, strokesToSvgPaths, ALPHABET } from '../dist/index.js';
+    import { SynthesisModel, loadWeights, strokesToCoords, outlinePath, ALPHABET } from '../dist/index.js';
 
     const textInput = document.getElementById('text-input');
     const biasSlider = document.getElementById('bias');
@@ -45,6 +45,7 @@
     const validChars = new Set(ALPHABET);
 
     let cachedWeights = null;
+    let animationId = null;
 
     generateBtn.addEventListener('click', async () => {
       const text = textInput.value.trim();
@@ -56,6 +57,12 @@
           status.textContent = `Invalid character: '${ch}'`;
           return;
         }
+      }
+
+      // Cancel any running animation
+      if (animationId !== null) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
       }
 
       generateBtn.disabled = true;
@@ -70,37 +77,82 @@
 
         status.textContent = 'Generating...';
 
-        // Use setTimeout to let the UI update
+        // Let the UI update
         await new Promise(r => setTimeout(r, 10));
 
         const model = new SynthesisModel(cachedWeights);
         const bias = parseFloat(biasSlider.value);
         const points = model.generate(text, { bias, maxSteps: 40 * text.length });
-        const paths = strokesToSvgPaths(points);
+        const strokes = strokesToCoords(points);
 
-        // Compute bounding box
+        // Compute bounding box from aligned coordinates
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        let cx = 0, cy = 0;
-        for (const p of points) {
-          cx += p.dx;
-          cy += p.dy;
-          const sy = -cy;
-          if (cx < minX) minX = cx;
-          if (cx > maxX) maxX = cx;
-          if (sy < minY) minY = sy;
-          if (sy > maxY) maxY = sy;
+        for (const stroke of strokes) {
+          for (const { x, y } of stroke) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
         }
 
-        const pad = 10;
+        const pad = 2;
         const vw = maxX - minX + 2 * pad;
         const vh = maxY - minY + 2 * pad;
 
-        const svgPaths = paths.map(d =>
-          `<path d="${d}" fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round"/>`
-        ).join('\n');
+        // Pre-compute full outline paths for completed strokes
+        const fullOutlines = strokes.map(s => outlinePath(s));
 
-        output.innerHTML = `<svg viewBox="${minX - pad} ${minY - pad} ${vw} ${vh}" xmlns="http://www.w3.org/2000/svg">${svgPaths}</svg>`;
-        status.textContent = `Generated ${paths.length} strokes, ${points.length} points.`;
+        // Set up SVG with one path element per stroke
+        const ns = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('viewBox', `${minX - pad} ${minY - pad} ${vw} ${vh}`);
+        svg.setAttribute('xmlns', ns);
+
+        const pathEls = strokes.map(() => {
+          const p = document.createElementNS(ns, 'path');
+          p.setAttribute('fill', 'black');
+          p.setAttribute('d', '');
+          svg.appendChild(p);
+          return p;
+        });
+
+        output.innerHTML = '';
+        output.appendChild(svg);
+
+        // Animate: progressive drawing
+        const pointsPerFrame = 3;
+        let strokeIdx = 0;
+        let pointIdx = 0;
+
+        function animate() {
+          if (strokeIdx >= strokes.length) {
+            status.textContent = `Generated ${strokes.length} strokes, ${points.length} points.`;
+            animationId = null;
+            return;
+          }
+
+          const currentStroke = strokes[strokeIdx];
+          pointIdx = Math.min(pointIdx + pointsPerFrame, currentStroke.length);
+
+          if (pointIdx >= currentStroke.length) {
+            // Stroke complete — use pre-computed full outline
+            pathEls[strokeIdx].setAttribute('d', fullOutlines[strokeIdx]);
+            strokeIdx++;
+            pointIdx = 0;
+          } else {
+            // Partial stroke — build outline from slice
+            const partial = currentStroke.slice(0, pointIdx);
+            if (partial.length > 0) {
+              pathEls[strokeIdx].setAttribute('d', outlinePath(partial));
+            }
+          }
+
+          animationId = requestAnimationFrame(animate);
+        }
+
+        animationId = requestAnimationFrame(animate);
+        status.textContent = 'Animating...';
       } catch (err) {
         status.textContent = `Error: ${err.message}`;
         console.error(err);
