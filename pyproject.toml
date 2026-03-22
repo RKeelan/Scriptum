@@ -5,4 +5,9 @@ requires-python = ">=3.11"
 dependencies = [
     "tensorflow>=2.15",
     "numpy",
+    "matplotlib",
+    "scipy",
+    "svgwrite",
+    "tensorflow-probability",
+    "tf-keras",
 ]
