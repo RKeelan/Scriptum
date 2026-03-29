@@ -13,7 +13,8 @@
     "check": "biome check .",
     "fmt": "biome check --fix .",
     "lint": "biome lint .",
-    "test": "bun test"
+    "test": "bun test",
+    "dev": "bunx serve ."
   },
   "keywords": [
     "handwriting",

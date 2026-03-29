@@ -12,4 +12,5 @@ bun run build      # Compile TypeScript
 bun run check      # Run linter and formatter checks
 bun run fmt        # Auto-fix lint and format issues
 bun test           # Run tests
+bun run dev        # Serve the demo page locally
 ```
