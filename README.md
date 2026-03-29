@@ -4,6 +4,21 @@
 
 Browser-based handwriting synthesis using Alex Graves' recurrent neural network model. Given input text, Scriptum generates realistic handwriting as SVG paths.
 
+## Setup
+
+Model weights are stored with [Git LFS](https://git-lfs.com/). Install it before cloning:
+
+```powershell
+git lfs install    # One-time setup
+git clone <repo>   # LFS files are fetched automatically
+```
+
+If you've already cloned without LFS, fetch the weights with:
+
+```powershell
+git lfs pull
+```
+
 ## Commands
 
 ```powershell

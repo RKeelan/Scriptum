@@ -1,6 +1,5 @@
 node_modules/
 dist/
-weights/
 .venv/
 *.egg-info/
 *.tsbuildinfo
