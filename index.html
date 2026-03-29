@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scriptum Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { margin-bottom: 1rem; font-size: 1.5rem; }
+    .controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+    input[type="text"] { flex: 1; min-width: 200px; padding: 0.5rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; }
+    label { font-size: 0.875rem; white-space: nowrap; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; border: 1px solid #333; border-radius: 4px; background: #333; color: white; }
+    button:disabled { opacity: 0.5; cursor: wait; }
+    #output { border: 1px solid #eee; border-radius: 4px; min-height: 120px; margin-top: 1rem; }
+    #output svg { width: 100%; height: auto; }
+    #status { font-size: 0.875rem; color: #666; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Scriptum</h1>
+  <div class="controls">
+    <input type="text" id="text-input" value="hello" placeholder="Type text to synthesize...">
+    <label>Bias: <input type="range" id="bias" min="0" max="2" step="0.1" value="0.5"><span id="bias-val">0.5</span></label>
+    <button id="generate">Generate</button>
+  </div>
+  <div id="output"></div>
+  <div id="status"></div>
+
+  <script type="module">
+    import { SynthesisModel, loadWeights, strokesToCoords, outlinePath, ALPHABET } from './dist/index.js';
+
+    const textInput = document.getElementById('text-input');
+    const biasSlider = document.getElementById('bias');
+    const biasVal = document.getElementById('bias-val');
+    const generateBtn = document.getElementById('generate');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+
+    biasSlider.addEventListener('input', () => {
+      biasVal.textContent = biasSlider.value;
+    });
+
+    const validChars = new Set(ALPHABET);
+
+    let cachedWeights = null;
+    let animationId = null;
+
+    generateBtn.addEventListener('click', async () => {
+      const text = textInput.value.trim();
+      if (!text) return;
+
+      // Validate
+      for (const ch of text) {
+        if (!validChars.has(ch)) {
+          status.textContent = `Invalid character: '${ch}'`;
+          return;
+        }
+      }
+
+      // Cancel any running animation
+      if (animationId !== null) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+
+      generateBtn.disabled = true;
+      status.textContent = 'Loading weights...';
+
+      try {
+        if (!cachedWeights) {
+          const response = await fetch('./weights/synthesis.bin');
+          const buffer = await response.arrayBuffer();
+          cachedWeights = loadWeights(buffer);
+        }
+
+        status.textContent = 'Generating...';
+
+        // Let the UI update
+        await new Promise(r => setTimeout(r, 10));
+
+        const model = new SynthesisModel(cachedWeights);
+        const bias = parseFloat(biasSlider.value);
+        const points = model.generate(text, { bias, maxSteps: 40 * text.length });
+        const strokes = strokesToCoords(points);
+
+        // Compute bounding box from aligned coordinates
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const stroke of strokes) {
+          for (const { x, y } of stroke) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+
+        const pad = 2;
+        const vw = maxX - minX + 2 * pad;
+        const vh = maxY - minY + 2 * pad;
+
+        // Pre-compute full outline paths for completed strokes
+        const fullOutlines = strokes.map(s => outlinePath(s));
+
+        // Set up SVG with one path element per stroke
+        const ns = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('viewBox', `${minX - pad} ${minY - pad} ${vw} ${vh}`);
+        svg.setAttribute('xmlns', ns);
+
+        const pathEls = strokes.map(() => {
+          const p = document.createElementNS(ns, 'path');
+          p.setAttribute('fill', 'black');
+          p.setAttribute('d', '');
+          svg.appendChild(p);
+          return p;
+        });
+
+        output.innerHTML = '';
+        output.appendChild(svg);
+
+        // Animate: progressive drawing
+        const pointsPerFrame = 3;
+        let strokeIdx = 0;
+        let pointIdx = 0;
+
+        function animate() {
+          if (strokeIdx >= strokes.length) {
+            status.textContent = `Generated ${strokes.length} strokes, ${points.length} points.`;
+            animationId = null;
+            return;
+          }
+
+          const currentStroke = strokes[strokeIdx];
+          pointIdx = Math.min(pointIdx + pointsPerFrame, currentStroke.length);
+
+          if (pointIdx >= currentStroke.length) {
+            // Stroke complete — use pre-computed full outline
+            pathEls[strokeIdx].setAttribute('d', fullOutlines[strokeIdx]);
+            strokeIdx++;
+            pointIdx = 0;
+          } else {
+            // Partial stroke — build outline from slice
+            const partial = currentStroke.slice(0, pointIdx);
+            if (partial.length > 0) {
+              pathEls[strokeIdx].setAttribute('d', outlinePath(partial));
+            }
+          }
+
+          animationId = requestAnimationFrame(animate);
+        }
+
+        animationId = requestAnimationFrame(animate);
+        status.textContent = 'Animating...';
+      } catch (err) {
+        status.textContent = `Error: ${err.message}`;
+        console.error(err);
+      } finally {
+        generateBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
