@@ -29,7 +29,7 @@
   <div id="status"></div>
 
   <script type="module">
-    import { SynthesisModel, loadWeights, strokesToCoords, outlinePath, ALPHABET } from '../dist/index.js';
+    import { SynthesisModel, loadWeights, strokesToCoords, outlinePath, ALPHABET } from './dist/index.js';
 
     const textInput = document.getElementById('text-input');
     const biasSlider = document.getElementById('bias');
@@ -70,7 +70,7 @@
 
       try {
         if (!cachedWeights) {
-          const response = await fetch('../weights/synthesis.bin');
+          const response = await fetch('./weights/synthesis.bin');
           const buffer = await response.arrayBuffer();
           cachedWeights = loadWeights(buffer);
         }
