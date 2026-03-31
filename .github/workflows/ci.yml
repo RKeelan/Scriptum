@@ -16,5 +16,6 @@ jobs:
           bun-version: latest
       - run: bun install
       - run: bun run check
+      - run: bun run lint:pkg
       - run: bun run build
       - run: bun test
