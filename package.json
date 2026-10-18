@@ -4,18 +4,18 @@
   "description": "Browser-based handwriting synthesis using Alex Graves' RNN model",
   "type": "module",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "bun run tsc",
+    "build": "bun build src/index.ts --outdir dist --sourcemap=linked",
     "check": "biome check .",
     "fmt": "biome check --fix .",
     "lint": "biome lint .",
     "lint:pkg": "npmPkgJsonLint .",
+    "typecheck": "bun --check",
     "test": "bun test",
-    "dev": "bunx serve ."
+    "dev": "bun scripts/serve.ts"
   },
   "keywords": [
     "handwriting",
